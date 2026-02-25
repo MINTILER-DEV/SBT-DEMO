@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SBText WASM Demo</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="header">
+        <h1>SBText Compiler (WASM)</h1>
+        <p>Compile SBText in your browser and download an <code>.sb3</code> file.</p>
+      </header>
+
+      <section class="panel controls">
+        <label class="field">
+          <span>Output filename</span>
+          <input id="outputName" type="text" value="project" />
+        </label>
+
+        <label class="toggle">
+          <input id="scaleSvgs" type="checkbox" checked />
+          <span>Scale SVGs to 64x64</span>
+        </label>
+
+        <div class="actions">
+          <button id="compileBtn" type="button">Compile to .sb3</button>
+          <button id="sampleBtn" type="button" class="ghost">Load sample</button>
+        </div>
+      </section>
+
+      <section class="panel editor">
+        <label for="source"><strong>SBText Source</strong></label>
+        <textarea id="source" spellcheck="false"></textarea>
+      </section>
+
+      <section class="panel output">
+        <strong>Status</strong>
+        <pre id="status">Loading WASM...</pre>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
