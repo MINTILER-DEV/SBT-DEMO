@@ -1,46 +1,479 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>SBText WASM Demo</title>
-    <link rel="stylesheet" href="./styles.css" />
-  </head>
-  <body>
-    <main class="app">
-      <header class="header">
-        <h1>SBText Compiler (WASM)</h1>
-        <p>Compile SBText in your browser and download an <code>.sb3</code> file.</p>
-      </header>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SBText · Demo Compiler</title>
+  <!-- monaco editor base styles & loader -->
+  <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://cdn.jsdelivr.net/npm/monaco-editor@0.34.1/min/vs/editor/editor.main.min.css" />
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f8fb;
+      --panel: #ffffff;
+      --ink: #1c2430;
+      --muted: #5b6675;
+      --line: #d7dde7;
+      --accent: #0b62e3;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      background: radial-gradient(circle at top left, #eef4ff 0%, var(--bg) 45%);
+      color: var(--ink);
+    }
+    .app {
+      max-width: 1300px;
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      gap: 16px;
+    }
+    .header p { margin: 6px 0 0; color: var(--muted); }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .controls {
+      display: grid;
+      gap: 12px;
+    }
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+    .field input[type="text"] {
+      width: min(360px, 100%);
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    .toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    button {
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: #fff;
+      border-radius: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    button.ghost {
+      background: transparent;
+      color: var(--accent);
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .editor-container {
+      margin-top: 8px;
+      width: 100%;
+      height: 520px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .output pre {
+      margin: 8px 0 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: var(--muted);
+    }
+    @media (max-width: 680px) {
+      .app { padding: 14px; }
+      .editor-container { height: 380px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="header">
+      <h1>SBText · Monaco + WASM compiler</h1>
+      <p>Write SBText with autocomplete (keywords, blocks, events) – compile to <code>.sb3</code></p>
+    </header>
 
-      <section class="panel controls">
-        <label class="field">
-          <span>Output filename</span>
-          <input id="outputName" type="text" value="project" />
-        </label>
+    <section class="panel controls">
+      <label class="field">
+        <span>Output filename</span>
+        <input id="outputName" type="text" value="project" />
+      </label>
+      <label class="toggle">
+        <input id="scaleSvgs" type="checkbox" checked />
+        <span>Scale SVGs to 64x64</span>
+      </label>
+      <div class="actions">
+        <button id="compileBtn" type="button">Compile to .sb3</button>
+        <button id="sampleBtn" type="button" class="ghost">Load sample</button>
+      </div>
+    </section>
 
-        <label class="toggle">
-          <input id="scaleSvgs" type="checkbox" checked />
-          <span>Scale SVGs to 64x64</span>
-        </label>
+    <section class="panel editor">
+      <label for="monaco-editor"><strong>SBText Source (Monaco)</strong></label>
+      <div id="monaco-editor" class="editor-container"></div>
+    </section>
 
-        <div class="actions">
-          <button id="compileBtn" type="button">Compile to .sb3</button>
-          <button id="sampleBtn" type="button" class="ghost">Load sample</button>
-        </div>
-      </section>
+    <section class="panel output">
+      <strong>Status</strong>
+      <pre id="status">Loading WASM & Monaco ...</pre>
+    </section>
+  </main>
 
-      <section class="panel editor">
-        <label for="source"><strong>SBText Source</strong></label>
-        <textarea id="source" spellcheck="false"></textarea>
-      </section>
+  <!-- load monaco and wasm boot -->
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.34.1/min/vs/loader.js"></script>
+  <script type="module">
+    // ----- WASM bootstrap (from original app.js, adapted) -----
+    import initWasm, { compile_source_to_sb3_with_options } from "./wasm/sbtext_rs_core.js";
 
-      <section class="panel output">
-        <strong>Status</strong>
-        <pre id="status">Loading WASM...</pre>
-      </section>
-    </main>
+    // DOM elements
+    const outputNameEl = document.getElementById("outputName");
+    const scaleSvgsEl = document.getElementById("scaleSvgs");
+    const compileBtn = document.getElementById("compileBtn");
+    const sampleBtn = document.getElementById("sampleBtn");
+    const statusEl = document.getElementById("status");
 
-    <script type="module" src="./app.js"></script>
-  </body>
+    // sample source (same as original)
+    const SAMPLE_SOURCE = `stage
+  when flag clicked
+    broadcast [start]
+  end
+end
+
+sprite Demo
+  var x
+
+  when I receive [start]
+    set [x] to (0)
+    repeat (20)
+      move (8) [steps]
+      turn right (18)
+      change [x] by (1)
+    end
+    say ("done")
+  end
+end`;
+
+    // global state
+    let wasmReady = false;
+    let editor = null;          // monaco editor instance
+
+    function setStatus(message) {
+      statusEl.textContent = message;
+    }
+
+    function sanitizeFileName(name) {
+      const raw = (name || "project").trim();
+      const cleaned = raw.replace(/[^a-zA-Z0-9._-]/g, "_");
+      return cleaned.length > 0 ? cleaned : "project";
+    }
+
+    function triggerDownload(bytes, filename) {
+      const blob = new Blob([bytes], { type: "application/octet-stream" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${filename}.sb3`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    // ----- initialise WASM (same as before) -----
+    async function bootWasm() {
+      try {
+        await initWasm();
+        wasmReady = true;
+        setStatus("WASM ready. You can compile now.");
+      } catch (err) {
+        console.error(err);
+        setStatus(`Failed to initialize WASM:\n${String(err)}`);
+      }
+    }
+
+    // ----- Monaco language configuration for SBText -----
+    function setupMonaco() {
+      // define a new language "sbtext"
+      monaco.languages.register({ id: 'sbtext' });
+
+      // ----- keywords extracted from SYNTAX.md -----
+      const keywords = [
+        'sprite', 'stage', 'end', 'var', 'list', 'costume', 'define', 'when',
+        'flag', 'clicked', 'I', 'receive', 'broadcast', 'and', 'wait', 'until',
+        'set', 'to', 'change', 'by', 'move', 'steps', 'turn', 'right', 'left',
+        'go', 'x', 'y', 'point', 'in', 'direction', 'if', 'on', 'edge', 'bounce',
+        'say', 'for', 'seconds', 'think', 'show', 'hide', 'next', 'backdrop',
+        'repeat', 'forever', 'else', 'stop', 'ask', 'reset', 'timer', 'add',
+        'delete', 'all', 'of', 'insert', 'at', 'replace', 'item', 'with', 'pen',
+        'down', 'up', 'erase', 'stamp', 'size', 'color', 'saturation', 'brightness',
+        'transparency', 'run', 'without', 'screen', 'refresh', 'not', 'or',
+        'pick', 'random', 'length', 'contains', 'key', 'pressed', 'answer', 'mouse',
+        'floor', 'round', 'and', 'contains', '?'
+      ];
+
+      // event snippets / starters
+      const eventHeaders = [
+        'when flag clicked',
+        'when this sprite clicked',
+        'when I receive [message]'
+      ];
+
+      // define completion provider
+      monaco.languages.registerCompletionItemProvider('sbtext', {
+        provideCompletionItems: (model, position) => {
+          const word = model.getWordUntilPosition(position);
+          const range = {
+            startLineNumber: position.lineNumber,
+            endLineNumber: position.lineNumber,
+            startColumn: word.startColumn,
+            endColumn: word.endColumn
+          };
+
+          // basic keyword completions
+          const keywordSuggestions = keywords.map(k => ({
+            label: k,
+            kind: monaco.languages.CompletionItemKind.Keyword,
+            insertText: k,
+            range: range
+          }));
+
+          // snippet for event headers (more detailed)
+          const eventSnippets = [
+            {
+              label: 'when flag clicked',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: 'when flag clicked\n  ${1:}',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'start on green flag',
+              range: range
+            },
+            {
+              label: 'when this sprite clicked',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: 'when this sprite clicked\n  ${1:}',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              range: range
+            },
+            {
+              label: 'when I receive',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: 'when I receive [${1:message}]\n  ${2:}',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              range: range
+            },
+            // control structures
+            {
+              label: 'repeat',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: 'repeat (${1:10})\n  ${2:}\nend',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              range: range
+            },
+            {
+              label: 'forever',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: 'forever\n  ${1:}\nend',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              range: range
+            },
+            {
+              label: 'if then',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: 'if <${1:condition}> then\n  ${2:}\nelse\n  ${3:}\nend',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              range: range
+            },
+            {
+              label: 'define procedure',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: 'define ${1:procName} (${2:arg})\n  ${3:}\nend',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              range: range
+            },
+            {
+              label: 'define warp',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: 'define !${1:procName} (${2:arg})\n  ${3:}\nend',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              range: range
+            }
+          ];
+
+          // common reporter snippets
+          const reporterSnippets = [
+            {
+              label: 'pick random',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: 'pick random (${1:1}) to (${2:10})',
+              range: range
+            },
+            {
+              label: 'item of list',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: 'item (${1:1}) of [${2:list}]',
+              range: range
+            }
+          ];
+
+          return {
+            suggestions: [...keywordSuggestions, ...eventSnippets, ...reporterSnippets]
+          };
+        }
+      });
+
+      // simple syntax highlighting (colors)
+      monaco.languages.setMonarchTokensProvider('sbtext', {
+        keywords: keywords,
+        brackets: [
+          { open: '(', close: ')', token: 'delimiter.parenthesis' },
+          { open: '[', close: ']', token: 'delimiter.square' },
+        ],
+        tokenizer: {
+          root: [
+            // comments
+            [/#.*$/, 'comment'],
+
+            // strings
+            [/".*?"/, 'string'],
+
+            // bracketed fields [var] or [message] – highlight as variable
+            [/\[[^\]]*\]/, 'variable'],
+
+            // numbers
+            [/\d+(\.\d+)?/, 'number'],
+
+            // identifiers and keywords
+            [/[a-zA-Z_?][a-zA-Z0-9_?.?]*/, {
+              cases: {
+                '@keywords': 'keyword',
+                '@default': 'identifier'
+              }
+            }],
+
+            // operators
+            [/[+\-*/%=<>!]=?/, 'operator'],
+          ]
+        }
+      });
+
+      // create editor with initial value
+      editor = monaco.editor.create(document.getElementById('monaco-editor'), {
+        value: SAMPLE_SOURCE,
+        language: 'sbtext',
+        theme: 'vs-light',
+        automaticLayout: true,
+        fontSize: 13,
+        minimap: { enabled: false },
+        scrollBeyondLastLine: false,
+        wordWrap: 'on',
+        glyphMargin: true,   // for error markers later
+        lineNumbers: 'on'
+      });
+
+      // listen for changes to possibly clear old markers (optional)
+      editor.onDidChangeModelContent(() => {
+        // you could clear markers on change, but we keep them until next compile
+      });
+    }
+
+    // ----- load monaco and then setup, then boot wasp -----
+    (async function loadMonacoAndStart() {
+      // loader.js defines require, we use it to load monaco
+      require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.34.1/min/vs' } });
+      require(['vs/editor/editor.main'], function () {
+        // monaco loaded, now define sbtext language and create editor
+        setupMonaco();
+        setStatus('Monaco ready. ' + (wasmReady ? 'WASM also ready.' : 'Loading WASM...'));
+      });
+
+      // boot wasm in parallel
+      await bootWasm();
+      if (editor) setStatus('WASM ready. Monaco + compiler active.');
+    })();
+
+    // ----- compile action (with editor content) -----
+    compileBtn.addEventListener("click", () => {
+      if (!wasmReady) {
+        setStatus("WASM is not ready yet.");
+        return;
+      }
+      if (!editor) {
+        setStatus("Monaco editor not initialized.");
+        return;
+      }
+
+      const source = editor.getValue();
+      if (!source.trim()) {
+        setStatus("Source is empty.");
+        return;
+      }
+
+      const outputName = sanitizeFileName(outputNameEl.value);
+      const scaleSvgs = scaleSvgsEl.checked;
+
+      compileBtn.disabled = true;
+      setStatus("Compiling...");
+
+      // clear previous error markers
+      if (editor) {
+        monaco.editor.setModelMarkers(editor.getModel(), 'sbtext-compiler', []);
+      }
+
+      try {
+        const sb3Bytes = compile_source_to_sb3_with_options(source, ".", scaleSvgs);
+        triggerDownload(sb3Bytes, outputName);
+        setStatus(`Compiled successfully. Downloaded ${outputName}.sb3`);
+      } catch (err) {
+        console.error(err);
+        const errorMessage = String(err);
+        setStatus(`Compile failed:\n${errorMessage}`);
+
+        // try to extract line number and add marker (naive, but shows capability)
+        const match = errorMessage.match(/line (\d+)/i) || errorMessage.match(/position (\d+)/);
+        if (match && editor) {
+          const line = parseInt(match[1], 10);
+          if (!isNaN(line) && line > 0) {
+            monaco.editor.setModelMarkers(editor.getModel(), 'sbtext-compiler', [{
+              startLineNumber: line,
+              startColumn: 1,
+              endLineNumber: line,
+              endColumn: 10,
+              message: errorMessage.split('\n')[0],
+              severity: monaco.MarkerSeverity.Error
+            }]);
+            // reveal line
+            editor.revealLine(line);
+          }
+        }
+      } finally {
+        compileBtn.disabled = false;
+      }
+    });
+
+    // ----- load sample into editor -----
+    sampleBtn.addEventListener("click", () => {
+      if (editor) {
+        editor.setValue(SAMPLE_SOURCE);
+        setStatus("Sample loaded.");
+        // clear markers
+        monaco.editor.setModelMarkers(editor.getModel(), 'sbtext-compiler', []);
+      } else {
+        // fallback if editor not ready (should not happen)
+        setStatus("Editor not ready, cannot load sample.");
+      }
+    });
+  </script>
+</body>
 </html>
