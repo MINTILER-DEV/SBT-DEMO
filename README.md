@@ -1,6 +1,6 @@
 # SBT-DEMO
 
-Static GitHub Pages demo that compiles SBText to `.sb3` in-browser using the `sbtext-rs` WASM release build.
+Static GitHub Pages demo that compiles [SBText](https://github.com/MINTILER-DEV/SBText-RS) to `.sb3` in-browser using the `sbtext-rs` WASM release build.
 
 ## Files
 
