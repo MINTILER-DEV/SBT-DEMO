@@ -51,6 +51,9 @@
       border: 1px solid var(--line);
       border-radius: 8px;
     }
+    .field input[type="file"] {
+      width: min(420px, 100%);
+    }
     .toggle {
       display: inline-flex;
       align-items: center;
@@ -114,6 +117,10 @@
         <input id="scaleSvgs" type="checkbox" checked />
         <span>Scale SVGs to 64x64</span>
       </label>
+      <label class="field">
+        <span>Input .sbtc bundle (optional)</span>
+        <input id="sbtcFile" type="file" accept=".sbtc,application/octet-stream" />
+      </label>
       <div class="actions">
         <button id="compileBtn" type="button">Compile to .sb3</button>
         <button id="sampleBtn" type="button" class="ghost">Load sample</button>
@@ -135,14 +142,17 @@
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.34.1/min/vs/loader.js"></script>
   <script type="module">
     // ----- WASM bootstrap (from original app.js, adapted) -----
-    import initWasm, { compile_source_to_sb3_with_options } from "./wasm/sbtext_rs_core.js";
+    import initWasm, * as wasmExports from "./wasm/sbtext_rs_core.js";
 
     // DOM elements
     const outputNameEl = document.getElementById("outputName");
     const scaleSvgsEl = document.getElementById("scaleSvgs");
+    const sbtcFileEl = document.getElementById("sbtcFile");
     const compileBtn = document.getElementById("compileBtn");
     const sampleBtn = document.getElementById("sampleBtn");
     const statusEl = document.getElementById("status");
+    const compileSourceToSb3WithOptions = wasmExports.compile_source_to_sb3_with_options;
+    const compileSbtcToSb3WithOptions = wasmExports.compile_sbtc_to_sb3_with_options;
 
     // sample source (same as original)
     const SAMPLE_SOURCE = `stage
@@ -177,6 +187,10 @@ end`;
       const raw = (name || "project").trim();
       const cleaned = raw.replace(/[^a-zA-Z0-9._-]/g, "_");
       return cleaned.length > 0 ? cleaned : "project";
+    }
+
+    function stripExtension(fileName) {
+      return fileName.replace(/\.[^.]*$/, "");
     }
 
     function triggerDownload(bytes, filename) {
@@ -405,19 +419,22 @@ end`;
       if (editor) setStatus('WASM ready. Monaco + compiler active.');
     })();
 
-    // ----- compile action (with editor content) -----
-    compileBtn.addEventListener("click", () => {
+    // ----- compile action (with editor content or .sbtc bundle) -----
+    compileBtn.addEventListener("click", async () => {
       if (!wasmReady) {
         setStatus("WASM is not ready yet.");
         return;
       }
-      if (!editor) {
+
+      const sbtcFile = sbtcFileEl?.files && sbtcFileEl.files.length > 0 ? sbtcFileEl.files[0] : null;
+
+      if (!sbtcFile && !editor) {
         setStatus("Monaco editor not initialized.");
         return;
       }
 
-      const source = editor.getValue();
-      if (!source.trim()) {
+      const source = editor ? editor.getValue() : "";
+      if (!sbtcFile && !source.trim()) {
         setStatus("Source is empty.");
         return;
       }
@@ -428,13 +445,25 @@ end`;
       compileBtn.disabled = true;
       setStatus("Compiling...");
 
-      // clear previous error markers
-      if (editor) {
+      // clear previous error markers (source mode only)
+      if (!sbtcFile && editor) {
         monaco.editor.setModelMarkers(editor.getModel(), 'sbtext-compiler', []);
       }
 
       try {
-        const sb3Bytes = compile_source_to_sb3_with_options(source, ".", scaleSvgs);
+        let sb3Bytes;
+        if (sbtcFile) {
+          if (typeof compileSbtcToSb3WithOptions !== "function") {
+            throw new Error("Loaded WASM build does not support .sbtc yet. Update wasm/sbtext_rs_core.*.");
+          }
+          const bundleBytes = new Uint8Array(await sbtcFile.arrayBuffer());
+          sb3Bytes = compileSbtcToSb3WithOptions(bundleBytes, ".", scaleSvgs);
+        } else {
+          if (typeof compileSourceToSb3WithOptions !== "function") {
+            throw new Error("Loaded WASM build is missing compile_source_to_sb3_with_options.");
+          }
+          sb3Bytes = compileSourceToSb3WithOptions(source, ".", scaleSvgs);
+        }
         triggerDownload(sb3Bytes, outputName);
         setStatus(`Compiled successfully. Downloaded ${outputName}.sb3`);
       } catch (err) {
@@ -442,21 +471,23 @@ end`;
         const errorMessage = String(err);
         setStatus(`Compile failed:\n${errorMessage}`);
 
-        // try to extract line number and add marker (naive, but shows capability)
-        const match = errorMessage.match(/line (\d+)/i) || errorMessage.match(/position (\d+)/);
-        if (match && editor) {
-          const line = parseInt(match[1], 10);
-          if (!isNaN(line) && line > 0) {
-            monaco.editor.setModelMarkers(editor.getModel(), 'sbtext-compiler', [{
-              startLineNumber: line,
-              startColumn: 1,
-              endLineNumber: line,
-              endColumn: 10,
-              message: errorMessage.split('\n')[0],
-              severity: monaco.MarkerSeverity.Error
-            }]);
-            // reveal line
-            editor.revealLine(line);
+        // try to extract line number and add marker (source mode only)
+        if (!sbtcFile) {
+          const match = errorMessage.match(/line (\d+)/i) || errorMessage.match(/position (\d+)/);
+          if (match && editor) {
+            const line = parseInt(match[1], 10);
+            if (!isNaN(line) && line > 0) {
+              monaco.editor.setModelMarkers(editor.getModel(), 'sbtext-compiler', [{
+                startLineNumber: line,
+                startColumn: 1,
+                endLineNumber: line,
+                endColumn: 10,
+                message: errorMessage.split('\n')[0],
+                severity: monaco.MarkerSeverity.Error
+              }]);
+              // reveal line
+              editor.revealLine(line);
+            }
           }
         }
       } finally {
@@ -474,6 +505,16 @@ end`;
       } else {
         // fallback if editor not ready (should not happen)
         setStatus("Editor not ready, cannot load sample.");
+      }
+    });
+
+    sbtcFileEl?.addEventListener("change", () => {
+      const file = sbtcFileEl.files && sbtcFileEl.files.length > 0 ? sbtcFileEl.files[0] : null;
+      if (file && file.name.toLowerCase().endsWith(".sbtc")) {
+        outputNameEl.value = sanitizeFileName(stripExtension(file.name));
+        setStatus(`Loaded bundle: ${file.name}. Click Compile to build .sb3.`);
+      } else if (file) {
+        setStatus("Selected file is not .sbtc.");
       }
     });
   </script>

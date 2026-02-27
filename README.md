@@ -2,6 +2,10 @@
 
 Static GitHub Pages demo that compiles [SBText](https://github.com/MINTILER-DEV/SBText-RS) to `.sb3` in-browser using the `sbtext-rs` WASM release build.
 
+The page supports:
+- compiling SBText from the Monaco editor
+- compiling prebuilt `.sbtc` bundles directly to `.sb3`
+
 ## Files
 
 - `index.html` - page layout

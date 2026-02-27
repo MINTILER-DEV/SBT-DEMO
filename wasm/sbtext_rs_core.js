@@ -1,6 +1,42 @@
 /* @ts-self-types="./sbtext_rs_core.d.ts" */
 
 /**
+ * @param {Uint8Array} sbtc_bytes
+ * @returns {Uint8Array}
+ */
+export function compile_sbtc_to_sb3(sbtc_bytes) {
+    const ptr0 = passArray8ToWasm0(sbtc_bytes, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.compile_sbtc_to_sb3(ptr0, len0);
+    if (ret[3]) {
+        throw takeFromExternrefTable0(ret[2]);
+    }
+    var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v2;
+}
+
+/**
+ * @param {Uint8Array} sbtc_bytes
+ * @param {string} fallback_source_dir
+ * @param {boolean} scale_svgs
+ * @returns {Uint8Array}
+ */
+export function compile_sbtc_to_sb3_with_options(sbtc_bytes, fallback_source_dir, scale_svgs) {
+    const ptr0 = passArray8ToWasm0(sbtc_bytes, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(fallback_source_dir, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.compile_sbtc_to_sb3_with_options(ptr0, len0, ptr1, len1, scale_svgs);
+    if (ret[3]) {
+        throw takeFromExternrefTable0(ret[2]);
+    }
+    var v3 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v3;
+}
+
+/**
  * @param {string} source
  * @returns {Uint8Array}
  */
@@ -76,6 +112,13 @@ function getUint8ArrayMemory0() {
         cachedUint8ArrayMemory0 = new Uint8Array(wasm.memory.buffer);
     }
     return cachedUint8ArrayMemory0;
+}
+
+function passArray8ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 1, 1) >>> 0;
+    getUint8ArrayMemory0().set(arg, ptr / 1);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
 }
 
 function passStringToWasm0(arg, malloc, realloc) {

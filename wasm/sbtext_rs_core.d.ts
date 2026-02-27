@@ -1,6 +1,10 @@
 /* tslint:disable */
 /* eslint-disable */
 
+export function compile_sbtc_to_sb3(sbtc_bytes: Uint8Array): Uint8Array;
+
+export function compile_sbtc_to_sb3_with_options(sbtc_bytes: Uint8Array, fallback_source_dir: string, scale_svgs: boolean): Uint8Array;
+
 export function compile_source_to_sb3(source: string): Uint8Array;
 
 export function compile_source_to_sb3_with_options(source: string, source_dir: string, scale_svgs: boolean): Uint8Array;
@@ -9,13 +13,15 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
+    readonly compile_sbtc_to_sb3: (a: number, b: number) => [number, number, number, number];
+    readonly compile_sbtc_to_sb3_with_options: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
     readonly compile_source_to_sb3: (a: number, b: number) => [number, number, number, number];
     readonly compile_source_to_sb3_with_options: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
     readonly __wbindgen_externrefs: WebAssembly.Table;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
-    readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
     readonly __externref_table_dealloc: (a: number) => void;
     readonly __wbindgen_free: (a: number, b: number, c: number) => void;
+    readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_start: () => void;
 }
 
